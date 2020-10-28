@@ -3,7 +3,7 @@ from sqlalchemy import MetaData, inspect
 from os import remove
 from os.path import join, dirname
 
-from snowxsql.upload import PointDataCSV
+from snowxsql.upload import PointDataCSV, StationDataCSV
 from snowxsql.data import PointData
 from snowxsql.metadata import DataHeader
 from  .sql_test_base import DBSetup, TableTestBase, pytest_generate_tests
@@ -118,3 +118,38 @@ class TestGPRPointData(PointsBase):
             dict(data_name='swe', attribute_to_count='date', expected_count=3)
             ]
             }
+
+class TestStationData(PointsBase):
+    UploaderClass = StationDataCSV
+    kwargs = dict(timezone='UTC',
+                  depth_is_metadata=False,
+                  site_name='Grand Mesa',
+                  epsg=26912,
+                  surveyors=None,
+                  latitude=39.03388,
+                  longitude=-108.21399)
+    args = ['met.csv']
+    params = {
+    'test_count':[
+            # Test that we uploaded 10 records
+            dict(data_name='air_temperature', expected_count=10)
+                ],}
+    #
+    # 'test_value': [
+    #         # Test the actual value of the dataset
+    #         dict(data_name='two_way_travel', attribute_to_check='value', filter_attribute='date', filter_value=gpr_dt, expected=8.3),
+    #         dict(data_name='density', attribute_to_check='value', filter_attribute='date', filter_value=gpr_dt, expected=250.786035454008),
+    #         dict(data_name='depth', attribute_to_check='value', filter_attribute='date', filter_value=gpr_dt, expected=102.662509421414),
+    #         dict(data_name='swe', attribute_to_check='value', filter_attribute='date', filter_value=gpr_dt, expected=257.463237275561),
+    #         # Test our unit assignment
+    #         dict(data_name='two_way_travel', attribute_to_check='units', filter_attribute='date', filter_value=gpr_dt, expected='ns'),
+    #         dict(data_name='density', attribute_to_check='units', filter_attribute='date', filter_value=gpr_dt, expected='kg/m^3'),
+    #         dict(data_name='depth', attribute_to_check='units', filter_attribute='date', filter_value=gpr_dt, expected='cm'),
+    #         dict(data_name='swe', attribute_to_check='units', filter_attribute='date', filter_value=gpr_dt, expected='mm'),
+    #         ],
+    #
+    # 'test_unique_count': [
+    #         # Test we have 5 unique dates
+    #         dict(data_name='swe', attribute_to_count='date', expected_count=3)
+    #         ]
+    #         }

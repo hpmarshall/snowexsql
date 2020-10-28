@@ -155,13 +155,17 @@ def add_date_time_keys(data, timezone='MST'):
 
     # If we didn't find date/time combined.
     if d == None:
+        smp_keys = ['date','time']
+        gpr_keys = ['utcyear', 'utcdoy', 'utctod']
+        met_keys = ['year', 'doy', 'hour','minute']
+
         # Handle SMP data dates and times
         if 'date' in keys and 'time' in keys:
             dstr = ' '.join([str(data['date']), str(data['time']), timezone])
             d = pd.to_datetime(dstr)
 
         # Handle gpr data dates
-        elif 'utcyear' in keys and 'utcdoy' in keys and 'utctod' in keys:
+        elif len([True for k in gpr_keys if k in keys])==3:
             base = pd.to_datetime('{:d}-01-01 00:00:00 '.format(int(data['utcyear'])) + 'UTC')
 
             # Number of days since january 1
@@ -179,7 +183,24 @@ def add_date_time_keys(data, timezone='MST'):
             d = base.astimezone(pytz.timezone(timezone)) + delta
 
             # Remove them
-            for v in ['utcyear', 'utcdoy', 'utctod']:
+            for v in gpr_keys:
+                del data[v]
+
+        # Handle met data dates
+        elif len([True for k in met_keys if k in keys])==4:
+            base = pd.to_datetime('{:d}-01-01 00:00:00 '.format(int(data['year'])) + 'UTC')
+
+            # Number of days since january 1
+            d = int(data['doy']) - 1
+
+            hr = data['hour']
+            mm = data['minute']
+
+            delta = datetime.timedelta(days=d, hours=hr, minutes=mm)
+            d = base.astimezone(pytz.timezone(timezone)) + delta
+
+            # Remove them
+            for v in met_keys:
                 del data[v]
 
         else:

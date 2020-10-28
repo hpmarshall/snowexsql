@@ -423,8 +423,8 @@ class DataHeader(object):
                      'infrared_surface_temperature_s20cm_above_soil',
                      'infrared_surface_temperature_s10cm_above_soil',
                      'infrared_surface_temperature_s5cm_above_soil',
-                     'infrared_surface_temperature_s2cm_above_soil', '
-                     infrared_surface_temperature_0cm_above_soil',
+                     'infrared_surface_temperature_s2cm_above_soil',
+                     'infrared_surface_temperature_0cm_above_soil',
                      'infrared_surface_temperature_2cm_above_soil',
                      'infrared_surface_temperature_5cm_above_soil',
                      'infrared_surface_temperature_10cm_above_soil',

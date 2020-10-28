@@ -4,8 +4,8 @@ Module for classes that upload single files to the database.
 from . data import *
 from .string_management import *
 from .interpretation import *
-from .utilities import *
-
+from .utilities import get_logger, assign_default_kwargs
+from .projection import reproject_point_in_dict, add_geom
 from .metadata import DataHeader
 from .db import get_table_attributes
 from . import units as master_units
@@ -189,7 +189,6 @@ class UploadProfileData():
             for i,row in df.iterrows():
                 data = row.to_dict()
 
-                # self.log.debug('\tAdding {} for {} at {}cm'.format(value_type, data['site_id'], data['depth']))
                 d = LayerData(**data)
                 session.add(d)
                 session.commit()
@@ -210,7 +209,6 @@ class PointDataCSV(object):
     # Units to apply
     units = master_units
 
-
     # Class attributes to apply
     defaults = {'debug':True}
 
@@ -226,7 +224,8 @@ class PointDataCSV(object):
         # Performance tracking
         self.errors = []
         self.points_uploaded = 0
-
+        print(self.hdr.data_names)
+        
     def _read(self, filename):
         '''
         Read in the csv
@@ -246,7 +245,8 @@ class PointDataCSV(object):
         self.log.info('Adding date and time to metadata...')
         df = df.apply(lambda data: add_date_time_keys(data, timezone=self.hdr.timezone), axis=1)
 
-        self.log.info('Adding valid keywaord arguments to metadata...')
+        self.log.info('Adding valid keyword arguments to metadata...')
+
         # 1. Only submit valid columns to the DB
         valid = get_table_attributes(PointData)
 
@@ -254,6 +254,13 @@ class PointDataCSV(object):
         for v in valid:
             if v in self.kwargs.keys():
                 df[v] = self.kwargs[v]
+
+        # Add projection info
+        self.log.info('Converting locations...')
+        df = df.apply(lambda row: reproject_point_in_dict(row), axis=1)
+
+        self.log.info('Adding geometry object to the metadata...')
+        df['geom'] = df.apply(lambda row: WKTElement('POINT({} {})'.format(row['easting'], row['northing']), srid=self.hdr.info['epsg']), axis=1)
 
         # 3. Remove columns that are not valid
         drops = \
@@ -263,6 +270,7 @@ class PointDataCSV(object):
 
         # replace all nans or string nones with None (none type)
         df = df.apply(lambda x: parse_none(x))
+
         return df
 
     def build_data(self, data_name):
@@ -320,15 +328,16 @@ class PointDataCSV(object):
         # Create the data structure to pass into the interacting class attributes
         data = row.copy()
 
-        # Add geometry
-        data['geom'] = WKTElement('POINT({} {})'.format(data['easting'],data['northing']), srid=self.hdr.info['epsg'])
-
         # Create db interaction, pass data as kwargs to class submit data
         sd = PointData(**data)
         session.add(sd)
         session.commit()
         self.points_uploaded += 1
 
+class StationDataCSV(PointDataCSV):
+    '''
+    Uploads a csv of Station data
+    '''
 
 class UploadRaster(object):
     '''

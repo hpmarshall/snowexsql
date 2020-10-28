@@ -14,7 +14,8 @@ with open('met_names.txt') as fp:
 rename = {}
 instruments = {}
 units = {}
-#
+
+
 special_cols = (
 '''IRtarget_nadir1_C_Avg	IRtarget_nadir2_C_Avg
 IRtarget_30degN_C_Avg	IRtarget_30degS_C_Avg
@@ -28,7 +29,7 @@ TCstringC_150cm_Avg TCstringC_175cm_Avg	TCstringC_200cm_Avg
 TCstringC_225cm_Avg	TCstringC_250cm_Avg	TCstringC_275cm_Avg
 TCstringC_300cm_Avg''')
 
-special_cols = [c.strip() for c in special_cols.replace('\t', ' ').replace('\n', ' ').split(' ') if c.strip()]
+special_cols = [c.strip().lower() for c in special_cols.replace('\t', ' ').replace('\n', ' ').split(' ') if c.strip()]
 
 # special keyword
 specials = ['IRtarget_XXX','IRsensor_XXX', 'TCstringC-XX', 'TCstringC-sXX']
@@ -38,7 +39,7 @@ for i,line in enumerate(lines):
 
     name = data[2].lower().strip().replace(' ','_').replace('/','_')
     original_name = data[0]
-    rename[original_name] = name
+    rename[original_name.lower()] = name.lower()
     instruments[name] = data[1].lower().strip()
     units[name] = data[3].lower().strip().replace('(','').replace(')','')
 
@@ -67,7 +68,6 @@ for c in special_cols:
             rename[c] = name
             instruments[name] = instruments[orig_name]
             units[name] = units[orig_name]
-
             break
 
 print('\nRENAME DICTIONARY:')
@@ -79,4 +79,5 @@ pp.pprint(instruments)
 print('\nUNITS DICTIONARY:')
 pp.pprint(units)
 
+print('')
 pp.pprint(rename.values())

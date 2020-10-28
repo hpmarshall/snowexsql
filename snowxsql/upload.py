@@ -8,6 +8,7 @@ from .utilities import *
 
 from .metadata import DataHeader
 from .db import get_table_attributes
+from . import units as master_units
 
 import pandas as pd
 import progressbar
@@ -207,8 +208,8 @@ class PointDataCSV(object):
     measurement_names = {'mp':'magnaprobe','m2':'mesa', 'pr':'pit ruler'}
 
     # Units to apply
-    units = {'depth':'cm','two_way_travel':'ns','swe':'mm',
-             'density':'kg/m^3'}
+    units = master_units
+
 
     # Class attributes to apply
     defaults = {'debug':True}

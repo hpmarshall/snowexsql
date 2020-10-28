@@ -9,7 +9,7 @@ from .data import SiteData
 from .db import get_table_attributes
 from .projection import reproject_point_in_dict, add_geom
 from .utilities import get_logger, read_n_lines, assign_default_kwargs
-
+from . import rename as master_rename
 import utm
 import pandas as pd
 import pytz
@@ -362,39 +362,86 @@ class DataHeader(object):
     '''
 
     # Typical names we run into that need renaming
-    rename = {'location':'site_name',
-             'top': 'depth',
-             'height':'depth',
-             'bottom':'bottom_depth',
-             'site': 'site_id',
-             'pitid': 'pit_id',
-             'slope':'slope_angle',
-             'weather':'weather_description',
-             'sky': 'sky_cover',
-             'notes':'site_notes',
-             'sample_top_height':'depth',
-             'deq':'equivalent_diameter',
-             'operator':'surveyors',
-             'observer':'surveyors',
-             'total_snow_depth':'total_depth',
-             'smp_serial_number':'instrument',
-             'lat':'latitude',
-             'long':'longitude',
-             'lon':'longitude',
-             'twt':'two_way_travel',
-             'measurement_tool':'instrument',
-             'avgdensity':'density',
-             'avg_density':'density',
-             'dielectric_constant': 'permittivity',
-             }
+    rename = master_rename
+    # rename = {'location':'site_name',
+    #          'top': 'depth',
+    #          'height':'depth',
+    #          'bottom':'bottom_depth',
+    #          'site': 'site_id',
+    #          'pitid': 'pit_id',
+    #          'slope':'slope_angle',
+    #          'weather':'weather_description',
+    #          'sky': 'sky_cover',
+    #          'notes':'site_notes',
+    #          'sample_top_height':'depth',
+    #          'deq':'equivalent_diameter',
+    #          'operator':'surveyors',
+    #          'observer':'surveyors',
+    #          'total_snow_depth':'total_depth',
+    #          'smp_serial_number':'instrument',
+    #          'lat':'latitude',
+    #          'long':'longitude',
+    #          'lon':'longitude',
+    #          'twt':'two_way_travel',
+    #          'measurement_tool':'instrument',
+    #          'avgdensity':'density',
+    #          'avg_density':'density',
+    #          'dielectric_constant': 'permittivity',
+    #          }
 
-    # Known possible profile types anything not in here will throw an error
+    # Known possible types anything not in here will throw an error
     available_data_names = ['density', 'permittivity','lwc_vol', 'temperature',
                      'force', 'reflectance','sample_signal',
                      'specific_surface_area', 'equivalent_diameter',
                      'grain_size', 'hand_hardness', 'grain_type',
-                     'manual_wetness', 'two_way_travel', 'depth','swe']
-
+                     'manual_wetness', 'two_way_travel', 'depth','swe',
+                     # Met station names
+                     'air_temperature', 'relative_humidity',
+                     'mean_horizontal_wind_speed',
+                     'unit_vector_mean_wind_direction', 'wind_direction',
+                     'barometric_pressure', 'upward_looking_shortwave_radiation',
+                     'downward_looking_shortwave_radiation',
+                     'upward_looking_longwave_radiation',
+                     'downward_looking_longwave_radiation',
+                     'temperature',
+                     'net_shortwave_radiation', 'net_longwave_radiation',
+                     'albedo', 'total_net_radiation',
+                     'upward_looking_longwave_radiation',
+                     'downward_looking_longwave_radiation',
+                     'infrared_surface_temperature', 'sensor_body_temperature',
+                     'soil_temperature', 'air_snow_temperature',
+                     'soil_moisture', 'soil_conductivity', 'soil_temperature',
+                     'soil_conductivity', 'real_dielectric_permittivity',
+                     'imaginary_dielectric_permittivity', 'mean_snow_depth',
+                     'infrared_surface_temperature_nadir1',
+                     'infrared_surface_temperature_nadir2',
+                     'infrared_surface_temperature_30_degrees_north',
+                     'infrared_surface_temperature_30_degrees_south',
+                     'infrared_surface_temperature_s50cm_above_soil',
+                     'infrared_surface_temperature_s40cm_above_soil',
+                     'infrared_surface_temperature_s30cm_above_soil',
+                     'infrared_surface_temperature_s20cm_above_soil',
+                     'infrared_surface_temperature_s10cm_above_soil',
+                     'infrared_surface_temperature_s5cm_above_soil',
+                     'infrared_surface_temperature_s2cm_above_soil', '
+                     infrared_surface_temperature_0cm_above_soil',
+                     'infrared_surface_temperature_2cm_above_soil',
+                     'infrared_surface_temperature_5cm_above_soil',
+                     'infrared_surface_temperature_10cm_above_soil',
+                     'infrared_surface_temperature_20cm_above_soil',
+                     'infrared_surface_temperature_30cm_above_soil',
+                     'infrared_surface_temperature_40cm_above_soil',
+                     'infrared_surface_temperature_50cm_above_soil',
+                     'infrared_surface_temperature_75cm_above_soil',
+                     'infrared_surface_temperature_100cm_above_soil',
+                     'infrared_surface_temperature_125cm_above_soil',
+                     'infrared_surface_temperature_150cm_above_soil',
+                     'infrared_surface_temperature_175cm_above_soil',
+                     'infrared_surface_temperature_200cm_above_soil',
+                     'infrared_surface_temperature_225cm_above_soil',
+                     'infrared_surface_temperature_250cm_above_soil',
+                     'infrared_surface_temperature_275cm_above_soil',
+                     'infrared_surface_temperature_300cm_above_soil']
     # Defaults to keywords arguments
     defaults = {'timezone': 'MST',
                 'epsg':26912,

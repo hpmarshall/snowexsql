@@ -7,7 +7,7 @@ import os
 from os import mkdir
 import numpy as np
 from snowxsql.metadata import read_InSar_annotation
-from snowxsql.conversions import INSAR_to_rasterio,
+from snowxsql.conversions import INSAR_to_rasterio
 from snowxsql.projection import reproject_raster_by_epsg
 from snowxsql.utilities import get_logger
 import utm
@@ -207,7 +207,7 @@ def open_crop_grd_files(f, desc, ratio, out_file):
 
 def copy_and_mod_annotation(ann_file, out_f, mods):
     '''
-    Copy the annotation file to ../tests/data/uavsar.ann. Then modify the file
+    Copy the annotation file to ../../tests/data/uavsar.ann. Then modify the file
     to represent the new data thats been cropped
 
     Args:
@@ -256,7 +256,7 @@ def main():
     ratio = 0.2
 
     # Output directory
-    outdir = '../tests/data'
+    outdir = '../../tests/data'
     temp = './temp'
 
     outdir = abspath(outdir)
@@ -311,7 +311,7 @@ def main():
     log.info("")
     log.info("Reprojecting files to GeoTiffs...")
 
-    utm_dir = '../tests/data/uavsar'
+    utm_dir = '../../tests/data/uavsar'
     utm_dir = abspath(expanduser(utm_dir))
 
     if isdir(utm_dir):

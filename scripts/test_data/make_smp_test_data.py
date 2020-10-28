@@ -9,4 +9,4 @@ d = '~/Downloads/NSIDC-upload/level_1_data/csv'
 filenames = [abspath(expanduser(join(d, f))) for f in filenames]
 
 # Add the files to our data folder but do not delete it ever.
-resample_batch(filenames, '../tests/data', 1000, header_pos=6, clean_on_start=False)
+resample_batch(filenames, '../../tests/data', 1000, header_pos=6, clean_on_start=False)

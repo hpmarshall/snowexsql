@@ -44,7 +44,7 @@ class SingleLocationData(SnowData):
     northing = Column(Float)
     easting = Column(Float)
     elevation = Column(Float)
-    utm_zone = Column(String(10))
+    utm_zone = Column(Integer)
     geom = Column(Geometry("POINT"))
     time = Column(Time(timezone=True))
 

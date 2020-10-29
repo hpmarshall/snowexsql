@@ -47,11 +47,14 @@ class BaseUploader():
         self.data = assign_default_kwargs(self, kwargs, self.defaults)
 
         # Read in the data and add metadata
+        self.log.info('Reading in {} data from {}'.format(self.TableClass.__name__.replace('Data', ''), filename))
+
         self.df = self._read(filename)
         self.df = self.prepare(self.df)
 
-        # Keep track of successul uploads
+        # Keep track of successul uploads and errors
         self.uploaded = 0
+        self.errors = []
 
         # Add a progressbar if its long upload
         if len(self.df.index) > 1000:
@@ -73,19 +76,37 @@ class BaseUploader():
         # Add in constant metadata here
         return df
 
-    def build_data(self, df, data_name):
+    def trim_columns(self, df):
+        '''
+        Drops all the columns that are not relevant to the db
+
+        Args:
+            df: Pandas dataframe
+        Return:
+            trimmed: pandas dataframe with only valid database columns
+        '''
+        trimmed = df.copy()
+
+        # Drop all columns were not expecting to go into the
+        drop_cols = [c for c in trimmed.columns if c not in self.expected_attributes]
+
+        # Let the database manage any indices. so always drop it (Snow depths have an ID)
+        if 'id' in trimmed.columns:
+            drop_cols.append('id')
+
+        trimmed = trimmed.drop(columns=drop_cols)
+
+        # Add any special submission adjustments here
+        return trimmed
+
+    def build_data(self, data_name):
         '''
         Function called during the upload loop which assigns the main value to
         the data and drops all other columns that are invalid to the db
         '''
-        new = df.copy()
 
-        # Drop all columns were not expecting to go into the
-        drop_cols = [c for c in new.columns if c not in self.expected_attributes]
-        new = new.drop(columns=drop_cols)
-
-        # Add any special submission adjustments here
-        return new
+        trimmed = self.trim_columns(self.df)
+        return trimmed
 
     def submit(self, session):
         '''
@@ -93,8 +114,8 @@ class BaseUploader():
         '''
         # Construct a dataframe with all metadata
         for name in self.data_names:
-            df = self.build_data(self.df, name)
-            print(df.columns)
+            df = self.build_data(name)
+
             # Grab each row, convert it to dict and join it with site info
             for i,row in df.iterrows():
                 data = row.to_dict()
@@ -109,6 +130,17 @@ class BaseUploader():
                         self.errors.append(e)
                         self.log.error((i, e))
 
+        # Error reporting
+        if len(self.errors) > 0:
+            name = (self.TableClass.__name__.replace('Data','') + 's').lower()
+            self.log.error('{} {} failed to upload.'.format(len(self.errors),
+                                                            name))
+            self.log.error('The following {} indicies failed with '
+                           'their corresponding errors:'.format(name))
+
+            for e in self.errors:
+                self.log.error('\t{} - {}'.format(e[0], e[1]))
+
 
     def add_one(self, session, data):
         '''
@@ -122,10 +154,10 @@ class BaseUploader():
             session: SQLAlchemy database session
             data: Dictionary of the data to submit to the db
         '''
+
         # Create db interaction, pass data as kwargs to class submit data
         d = self.TableClass(**data)
-        print(len(data['raster']))
-        print(data['raster'][0:2], data['raster'][-3:-1])
+
         session.add(d)
         session.commit()
         self.uploaded += 1
@@ -137,19 +169,30 @@ class BaseTextUploader(BaseUploader):
     '''
 
     def __init__(self, filename, **kwargs):
-        super().__init__(filename, **kwargs)
 
-        # All text files have columns and maybe header info
+        # All text files have columns and maybe some header info
         self.hdr = DataHeader(filename, **kwargs)
+        super().__init__(filename, **kwargs)
 
         # Transfer a couple attributes for brevity
         for att in ['data_names', 'multi_sample_profiles']:
             setattr(self, att, getattr(self.hdr, att))
 
-        # Read in data
-        self.df = self._read(filename)
+    def _read(self, filename):
+        '''
+        Reads in data according to the header interpretation
+        '''
+        # header = 0 because docs say to if using skiprows and columns
+        df = pd.read_csv(filename, header=0, skiprows= self.hdr.header_pos,
+                                             names=self.hdr.columns,
+                                             encoding='latin')
 
-class UploadProfileData():
+        # replace all nans or string nones with None (none type)
+        df = df.apply(lambda x: parse_none(x))
+
+        return df
+
+class UploadProfileData(BaseTextUploader):
     '''
     Class for submitting a single profile. Since layers are uploaded layer by
     layer this allows for submitting them one file at a time.
@@ -277,12 +320,7 @@ class UploadProfileData():
             df['value'] = df[data_name].astype(str)
 
         # Drop all columns were not expecting
-        drop_cols = [c for c in df.columns if c not in self.expected_attributes]
-        df = df.drop(columns=drop_cols)
-
-        # Manage nans and nones
-        for c in df.columns:
-            df[c] = df[c].apply(lambda x: parse_none(x))
+        df = self.trim_columns(df)
 
         # Clean up comments a bit
         if 'comments' in df.columns:
@@ -318,7 +356,7 @@ class UploadProfileData():
 
         self.log.debug('Profile Submitted!\n')
 
-class PointDataCSV(object):
+class PointDataCSV(BaseTextUploader):
     '''
     Class for submitting whole csv files of point data
     '''
@@ -329,30 +367,17 @@ class PointDataCSV(object):
     # Units to apply
     units = master_units
 
+    # Assign the table class which is used for uploading
+    TableClass = PointData
+
     # Class attributes to apply
-    defaults = {'debug':True}
+    defaults = {'debug':True, 'utm_zone':12, 'epsg':26912}
 
-    def __init__(self, filename, **kwargs):
-        self.log = get_logger(__name__)
-
-        # Assign defaults for this class
-        self.kwargs = assign_default_kwargs(self, kwargs, self.defaults)
-
-        self.hdr = DataHeader(filename, **self.kwargs)
-        self.df = self._read(filename)
-
-        # Performance tracking
-        self.errors = []
-        self.points_uploaded = 0
-
-    def _read(self, filename):
+    def prepare(self, df):
         '''
-        Read in the csv
+        Prepare the data for before the upload loop.
+        This renames the instruments
         '''
-
-        self.log.info('Reading in CSV data from {}'.format(filename))
-        df = pd.read_csv(filename, header=self.hdr.header_pos,
-                                   names=self.hdr.columns)
 
         # Assign the measurement tool verbose name
         if 'instrument' in df.columns:
@@ -364,31 +389,16 @@ class PointDataCSV(object):
         self.log.info('Adding date and time to metadata...')
         df = df.apply(lambda data: add_date_time_keys(data, timezone=self.hdr.timezone), axis=1)
 
-        self.log.info('Adding valid keyword arguments to metadata...')
-
-        # 1. Only submit valid columns to the DB
-        valid = get_table_attributes(PointData)
-
-        # 2. Add all kwargs that were valid
-        for v in valid:
-            if v in self.kwargs.keys():
-                df[v] = self.kwargs[v]
-
         # Add projection info
         self.log.info('Converting locations...')
+
+        if 'utm_zone' not in df.columns:
+            df['utm_zone'] = int(self.utm_zone)
+
         df = df.apply(lambda row: reproject_point_in_dict(row), axis=1)
 
         self.log.info('Adding geometry object to the metadata...')
-        df['geom'] = df.apply(lambda row: WKTElement('POINT({} {})'.format(row['easting'], row['northing']), srid=self.hdr.info['epsg']), axis=1)
-
-        # 3. Remove columns that are not valid
-        drops = \
-        [c for c in df.columns  if c not in valid and c not in self.hdr.data_names]
-        self.log.info('Dropping {} as they are not valid on the database...'.format(', '.join(drops)))
-        df = df.drop(columns=drops)
-
-        # replace all nans or string nones with None (none type)
-        df = df.apply(lambda x: parse_none(x))
+        df['geom'] = df.apply(lambda row: add_geom(row, self.epsg), axis=1)
 
         return df
 
@@ -396,6 +406,7 @@ class PointDataCSV(object):
         '''
         Pad the dataframe with metdata or make info more verbose
         '''
+
         # Assign our main value to the value column
         df = self.df.copy()
         df['value'] = self.df[data_name].copy()
@@ -405,53 +416,11 @@ class PointDataCSV(object):
         if data_name in self.units.keys():
             df['units'] = self.units[data_name]
 
-        df = df.drop(columns=self.hdr.data_names)
+        # Drop all columns were not expecting
+        df = self.trim_columns(df)
 
         return df
 
-
-    def submit(self, session):
-        # Loop through all the entries and add them to the db
-        for pt in self.hdr.data_names:
-            df = self.build_data(pt)
-            self.log.info('Submitting {} points of {} to the database...'.format(len(self.df.index), pt))
-
-            bar = progressbar.ProgressBar(max_value=len(self.df.index))
-
-            for i,row in df.iterrows():
-                if self.debug:
-                    self.add_one(session, row)
-                else:
-                    try:
-                        self.add_one(session, row)
-
-                    except Exception as e:
-                        self.errors.append(e)
-                        self.log.error((i, e))
-
-                bar.update(i)
-
-        # Error reporting
-        if len(self.errors) > 0:
-            self.log.error('{} points failed to upload.'.format(len(self.errors)))
-            self.log.error('The following point indicies failed with '
-                           'their corresponding errors:')
-
-            for e in self.errors:
-                self.log.error('\t{} - {}'.format(e[0], e[1]))
-
-    def add_one(self, session, row):
-        '''
-        Uploads one point
-        '''
-        # Create the data structure to pass into the interacting class attributes
-        data = row.copy()
-
-        # Create db interaction, pass data as kwargs to class submit data
-        sd = PointData(**data)
-        session.add(sd)
-        session.commit()
-        self.points_uploaded += 1
 
 class StationDataCSV(PointDataCSV):
     '''
@@ -513,5 +482,5 @@ class UploadRaster(BaseUploader):
         # Add in meta data
         for k,v in self.data.items():
             df[k] = v
-            
+
         return df

@@ -37,14 +37,13 @@ def test_add_geom():
     result = add_geom(info, 26912)
 
     # Ensure we added a geom key and value that is WKTE
-    assert 'geom' in result.keys()
-    assert type(result['geom']) == WKTElement
+    assert type(result) == WKTElement
 
     # Convert it to pyshapely for testing/ data integrity
-    p = to_shape(result['geom'])
+    p = to_shape(result)
     assert p.x == info['easting']
     assert p.y == info['northing']
-    assert result['geom'].srid == 26912
+    assert result.srid == 26912
 
 
 class TestReprojectRasterByEPSG():

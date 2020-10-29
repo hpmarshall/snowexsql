@@ -62,14 +62,13 @@ def add_geom(info, epsg):
         epsg: integer representing the projection code
 
     Returns:
-        info: Dictionary containing everything it originally did plus a geom
-              key with WKTElement value
+        geom: WKTElement value
     '''
     # Add a geometry entry
-    info['geom'] = WKTElement('SRID={}; POINT({} {})'
+    geom = WKTElement('SRID={}; POINT({} {})'
                         ''.format(epsg, info['easting'], info['northing']),
                                  extended=True)
-    return info
+    return geom
 
 
 def reproject_raster_by_epsg(input_f, output_f, epsg):

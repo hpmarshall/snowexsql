@@ -17,7 +17,9 @@ class PointsBase(TableTestBase):
                   depth_is_metadata=False,
                   site_name='Grand Mesa',
                   epsg=26912,
-                  surveyors='TEST')
+                  surveyors='TEST',
+                  utm_zone=12)
+
     TableClass = PointData
     UploaderClass = PointDataCSV
 
@@ -62,7 +64,7 @@ class TestSnowDepths(PointsBase):
                 'northing': float,
                 'easting': float,
                 'elevation': float,
-                'utm_zone': float,
+                'utm_zone': int,
                 'version_number': int,
                 'type': str,
                 'units': str,
@@ -73,6 +75,7 @@ class TestSnowDepths(PointsBase):
         r = self.session.query(PointData).limit(1).one()
         for c, dtype in dtypes.items():
             db_type = type(getattr(r, c))
+            print(c)
             assert (db_type == dtype) or (db_type == type(None))
 
     def test_geopandas_compliance(self):
@@ -119,21 +122,21 @@ class TestGPRPointData(PointsBase):
             ]
             }
 
-class TestStationData(PointsBase):
-    UploaderClass = StationDataCSV
-    kwargs = dict(timezone='UTC',
-                  depth_is_metadata=False,
-                  site_name='Grand Mesa',
-                  epsg=26912,
-                  surveyors=None,
-                  latitude=39.03388,
-                  longitude=-108.21399)
-    args = ['met.csv']
-    params = {
-    'test_count':[
-            # Test that we uploaded 10 records
-            dict(data_name='air_temperature', expected_count=10)
-                ],}
+# class TestStationData(PointsBase):
+#     UploaderClass = StationDataCSV
+#     kwargs = dict(timezone='UTC',
+#                   depth_is_metadata=False,
+#                   site_name='Grand Mesa',
+#                   epsg=26912,
+#                   surveyors=None,
+#                   latitude=39.03388,
+#                   longitude=-108.21399)
+#     args = ['met.csv']
+#     params = {
+#     'test_count':[
+#             # Test that we uploaded 10 records
+#             dict(data_name='air_temperature', expected_count=10)
+#                 ],}
     #
     # 'test_value': [
     #         # Test the actual value of the dataset

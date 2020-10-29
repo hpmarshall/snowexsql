@@ -10,6 +10,8 @@ from .db import get_table_attributes
 from .projection import reproject_point_in_dict, add_geom
 from .utilities import get_logger, read_n_lines, assign_default_kwargs
 from . import rename as master_rename
+from . import available_data_names as master_available_data_names
+
 import utm
 import pandas as pd
 import pytz
@@ -121,7 +123,6 @@ class SMPMeasurementLog(object):
         df: Dataframe containing rows of details describing each measurement
 
     '''
-
 
     def __init__(self, filename):
         self.log = get_logger(__name__)
@@ -363,85 +364,9 @@ class DataHeader(object):
 
     # Typical names we run into that need renaming
     rename = master_rename
-    # rename = {'location':'site_name',
-    #          'top': 'depth',
-    #          'height':'depth',
-    #          'bottom':'bottom_depth',
-    #          'site': 'site_id',
-    #          'pitid': 'pit_id',
-    #          'slope':'slope_angle',
-    #          'weather':'weather_description',
-    #          'sky': 'sky_cover',
-    #          'notes':'site_notes',
-    #          'sample_top_height':'depth',
-    #          'deq':'equivalent_diameter',
-    #          'operator':'surveyors',
-    #          'observer':'surveyors',
-    #          'total_snow_depth':'total_depth',
-    #          'smp_serial_number':'instrument',
-    #          'lat':'latitude',
-    #          'long':'longitude',
-    #          'lon':'longitude',
-    #          'twt':'two_way_travel',
-    #          'measurement_tool':'instrument',
-    #          'avgdensity':'density',
-    #          'avg_density':'density',
-    #          'dielectric_constant': 'permittivity',
-    #          }
 
-    # Known possible types anything not in here will throw an error
-    available_data_names = ['density', 'permittivity','lwc_vol', 'temperature',
-                     'force', 'reflectance','sample_signal',
-                     'specific_surface_area', 'equivalent_diameter',
-                     'grain_size', 'hand_hardness', 'grain_type',
-                     'manual_wetness', 'two_way_travel', 'depth','swe',
-                     # Met station data_names names
-                     'air_temperature', 'relative_humidity',
-                     'mean_horizontal_wind_speed',
-                     'unit_vector_mean_wind_direction', 'wind_direction',
-                     'barometric_pressure', 'upward_looking_shortwave_radiation',
-                     'downward_looking_shortwave_radiation',
-                     'upward_looking_longwave_radiation',
-                     'downward_looking_longwave_radiation',
-                     'temperature',
-                     'net_shortwave_radiation', 'net_longwave_radiation',
-                     'albedo', 'total_net_radiation',
-                     'upward_looking_longwave_radiation',
-                     'downward_looking_longwave_radiation',
-                     'infrared_surface_temperature', 'sensor_body_temperature',
-                     'soil_temperature', 'air_snow_temperature',
-                     'soil_moisture', 'soil_conductivity', 'soil_temperature',
-                     'soil_conductivity', 'real_dielectric_permittivity',
-                     'imaginary_dielectric_permittivity', 'mean_snow_depth',
-                     'infrared_surface_temperature_nadir1',
-                     'infrared_surface_temperature_nadir2',
-                     'infrared_surface_temperature_30_degrees_north',
-                     'infrared_surface_temperature_30_degrees_south',
-                     'infrared_surface_temperature_s50cm_above_soil',
-                     'infrared_surface_temperature_s40cm_above_soil',
-                     'infrared_surface_temperature_s30cm_above_soil',
-                     'infrared_surface_temperature_s20cm_above_soil',
-                     'infrared_surface_temperature_s10cm_above_soil',
-                     'infrared_surface_temperature_s5cm_above_soil',
-                     'infrared_surface_temperature_s2cm_above_soil',
-                     'infrared_surface_temperature_0cm_above_soil',
-                     'infrared_surface_temperature_2cm_above_soil',
-                     'infrared_surface_temperature_5cm_above_soil',
-                     'infrared_surface_temperature_10cm_above_soil',
-                     'infrared_surface_temperature_20cm_above_soil',
-                     'infrared_surface_temperature_30cm_above_soil',
-                     'infrared_surface_temperature_40cm_above_soil',
-                     'infrared_surface_temperature_50cm_above_soil',
-                     'infrared_surface_temperature_75cm_above_soil',
-                     'infrared_surface_temperature_100cm_above_soil',
-                     'infrared_surface_temperature_125cm_above_soil',
-                     'infrared_surface_temperature_150cm_above_soil',
-                     'infrared_surface_temperature_175cm_above_soil',
-                     'infrared_surface_temperature_200cm_above_soil',
-                     'infrared_surface_temperature_225cm_above_soil',
-                     'infrared_surface_temperature_250cm_above_soil',
-                     'infrared_surface_temperature_275cm_above_soil',
-                     'infrared_surface_temperature_300cm_above_soil']
+    available_data_names = master_available_data_names
+
     # Defaults to keywords arguments
     defaults = {'timezone': 'MST',
                 'epsg':26912,
@@ -469,7 +394,7 @@ class DataHeader(object):
 
         self.extra_header = assign_default_kwargs(self, kwargs, self.defaults, leave=['epsg'])
 
-        self.log.info('Interpretting metdaata in {}'.format(filename))
+        self.log.info('Interpretting metadata in {}'.format(filename))
 
         # Site location files will have no data_name
         self.data_names = None
@@ -498,7 +423,7 @@ class DataHeader(object):
             if k in valid:
                  kwargs[k] = v
 
-        kwargs = add_geom(kwargs, self.info['epsg'])
+        kwargs['geom'] = add_geom(kwargs, self.info['epsg'])
         d = SiteData(**kwargs)
         session.add(d)
         session.commit()
@@ -506,6 +431,13 @@ class DataHeader(object):
     def rename_sample_profiles(self, columns, data_names):
         '''
         Rename columns like density_a to density_sample_a
+
+        Args:
+            columns: Colummns found in the header
+            data_names: names of columns that will be uploaded
+
+        Returns:
+            result: List of the column names with sample cols renamed
         '''
         result = []
         for c in columns:
@@ -691,6 +623,7 @@ class DataHeader(object):
         # Find the column names and where it is in the file
         else:
             columns, header_pos = self.parse_column_names(lines)
+
             self.log.debug('Column Data found to be {} columns based on Line '
                            '{}'.format(len(columns), header_pos))
 
@@ -818,7 +751,7 @@ class DataHeader(object):
 
         # Check for point data which will contain this in the data not the header
         if not is_point_data(self.columns):
-            info = add_geom(info, self.epsg)
+            info['geom'] = add_geom(info, self.epsg)
 
         # If columns or info does not have coordinates raise an error
         important = ['northing', 'latitude']

@@ -196,12 +196,13 @@ def parse_none(value):
                 return original value
     '''
     result = value
+    dtype = type(value)
 
     # If its a nan or none or the string is empty
-    if type(value) == str:
+    if dtype == str:
         if value.lower() in ['nan', 'none'] or not value:
             result = None
-    elif type(value) == float:
+    elif dtype == float:
         if np.isnan(value):
             result = None
 

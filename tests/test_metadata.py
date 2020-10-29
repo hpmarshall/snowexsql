@@ -248,7 +248,7 @@ class TestGPRHeader(DataHeaderTestBase):
     def setup_class(self):
         self.file = 'gpr.csv'
         self.data_names = ['density','depth','swe', 'two_way_travel']
-        self.columns = ['utcyear', 'utcdoy', 'utctod', 'utmzone', 'easting',
+        self.columns = ['utcyear', 'utcdoy', 'utctod', 'utm_zone', 'easting',
                         'northing', 'elevation', 'avgvelocity'] + self.data_names
 
         self.multi_sample_profiles = []

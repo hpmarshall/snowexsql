@@ -192,45 +192,57 @@ class BaseTextUploader(BaseUploader):
 
         return df
 
+    def assign_value_units(self, data_name, df):
+        '''
+        Used inside the upload loop.
+
+        1.Assign the value to the data_name in the dataframe.
+        2. Assigns any units we might already have
+        3. Assigns the name of the data
+        4. Trims unecessary columns.
+
+        Args:
+            data_name: Name of the column thats being uploaded and assigned to db value
+            df: Pandas dataframe containing text file to upload
+        Returns:
+            df: Pandas DataFrame with only the necessary column
+        '''
+        
+        # Assign our main value to the value column
+        df['value'] = df[data_name].copy()
+        df['type'] = data_name
+
+        # Add units
+        if data_name in self.units.keys():
+            df['units'] = self.units[data_name]
+
+        # Drop all columns were not expecting
+        df = self.trim_columns(df)
+        return df
+
 class UploadProfileData(BaseTextUploader):
     '''
     Class for submitting a single profile. Since layers are uploaded layer by
     layer this allows for submitting them one file at a time.
     '''
-    expected_attributes = [c for c in dir(LayerData) if c[0] != '_']
+    # Assign the table class which is used for uploading
+    TableClass = LayerData
 
-    def __init__(self, profile_filename, **kwargs):
-        self.log = get_logger(__name__)
+    # Class attributes to apply
+    defaults = {'debug':True, 'utm_zone':12, 'epsg':26912}
 
-        self.filename = profile_filename
-
-        # Read in the file header
-        self.hdr = DataHeader(profile_filename, **kwargs)
-
-        # Transfer a couple attributes for brevity
-        for att in ['data_names', 'multi_sample_profiles']:
-            setattr(self, att, getattr(self.hdr, att))
-
-        # Read in data
-        self.df = self._read(profile_filename)
-
-
-    def _read(self, profile_filename):
+    def prepare(self, df):
         '''
-        Read in a profile file. Managing the number of lines to skip and
-        adjusting column names
+        Manages the dataframe profile.
+
+        1. Changes the snow depth format if it is a SMP (surface_datum) or any other profile (snow_height)
+        2. Reports number of layers and total depth
 
         Args:
-            profile_filename: Filename containing the a manually measured
-                             profile
+            df: Pandas dataframe containing at least depth, bottom_depth
         Returns:
-            df: pd.dataframe contain csv data with standardized column names
+            df: Pandas dataframe with the snow depth format adjusted
         '''
-        # header=0 because docs say to if using skiprows and columns
-        df = pd.read_csv(profile_filename, header=0,
-                                           skiprows= self.hdr.header_pos,
-                                           names=self.hdr.columns,
-                                           encoding='latin')
 
         # If SMP profile convert depth to cm
         depth_fmt = 'snow_height'
@@ -255,6 +267,7 @@ class UploadProfileData(BaseTextUploader):
         self.log.info('File contains {} profiles each with {} layers across '
                      '{:0.2f} cm'.format(len(self.hdr.data_names), len(df), delta))
         return df
+
 
     def check(self, site_info):
         '''
@@ -327,34 +340,6 @@ class UploadProfileData(BaseTextUploader):
             df['comments'] = df['comments'].apply(lambda x: x.strip(' ') if type(x) == str else x)
 
         return df
-
-    def submit(self, session):
-        '''
-        Submit values to the db from dictionary. Manage how some profiles have
-        multiple values and get submitted individual
-
-        Args:
-            session: SQLAlchemy session
-        '''
-        long_upload = False
-
-        # Construct a dataframe with all metadata
-        for pt in self.data_names:
-            df = self.build_data(pt)
-
-
-            # Grab each row, convert it to dict and join it with site info
-            for i,row in df.iterrows():
-                data = row.to_dict()
-
-                d = LayerData(**data)
-                session.add(d)
-                session.commit()
-
-                if long_upload:
-                    bar.update(i)
-
-        self.log.debug('Profile Submitted!\n')
 
 class PointDataCSV(BaseTextUploader):
     '''

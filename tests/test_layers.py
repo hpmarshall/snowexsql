@@ -78,7 +78,7 @@ class TestDensityProfile(TableTestBase):
     'test_value': [dict(data_name='density', attribute_to_check='value', filter_attribute='depth', filter_value=35, expected=np.mean([190, 245])),
                    dict(data_name='density', attribute_to_check='sample_a', filter_attribute='depth', filter_value=35, expected=190),
                    dict(data_name='density', attribute_to_check='sample_b', filter_attribute='depth', filter_value=35, expected=245),
-                   dict(data_name='density', attribute_to_check='sample_c', filter_attribute='depth', filter_value=35, expected=None),
+                   dict(data_name='density', attribute_to_check='sample_c', filter_attribute='depth', filter_value=35, expected=np.nan),
                    ],
     'test_unique_count': [
                     # Place holder for this test: test only one site_id was added

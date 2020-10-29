@@ -395,7 +395,7 @@ class DataHeader(object):
                      'specific_surface_area', 'equivalent_diameter',
                      'grain_size', 'hand_hardness', 'grain_type',
                      'manual_wetness', 'two_way_travel', 'depth','swe',
-                     # Met station names
+                     # Met station data_names names
                      'air_temperature', 'relative_humidity',
                      'mean_horizontal_wind_speed',
                      'unit_vector_mean_wind_direction', 'wind_direction',

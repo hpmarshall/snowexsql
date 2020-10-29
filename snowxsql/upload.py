@@ -22,6 +22,133 @@ import numpy as np
 import time
 
 
+class BaseUploader():
+    '''
+    Base class for uploading everything
+    '''
+    # Default kwargs
+    defaults = {'epsg':26912,
+                'debug':True}
+
+    # Class pointing to the table for retrieving common attributes
+    TableClass = None
+
+    def __init__(self, filename,  **kwargs):
+        # Logger
+        self.log = get_logger(__name__)
+
+        # Filename to upload
+        self.filename = filename
+
+        # Expected Attributes of the table class
+        self.expected_attributes = [c for c in dir(self.TableClass) if c[0] != '_']
+
+        # Metadata passed through from kwargs
+        self.data = assign_default_kwargs(self, kwargs, self.defaults)
+
+        # Read in the data and add metadata
+        self.df = self._read(filename)
+        self.df = self.prepare(self.df)
+
+        # Keep track of successul uploads
+        self.uploaded = 0
+
+        # Add a progressbar if its long upload
+        if len(self.df.index) > 1000:
+            self.long_upload = True
+            self.bar = progressbar.ProgressBar(max_value=len(self.df.index))
+        else:
+            self.long_upload = False
+
+    def _read(self, filename):
+        '''
+        Abstract function that defines self.df for uploading
+        '''
+        pass
+
+    def prepare(self, df):
+        '''
+        Adds in constant meta data to the dataframe before the upload loop
+        '''
+        # Add in constant metadata here
+        return df
+
+    def build_data(self, df, data_name):
+        '''
+        Function called during the upload loop which assigns the main value to
+        the data and drops all other columns that are invalid to the db
+        '''
+        new = df.copy()
+
+        # Drop all columns were not expecting to go into the
+        drop_cols = [c for c in new.columns if c not in self.expected_attributes]
+        new = new.drop(columns=drop_cols)
+
+        # Add any special submission adjustments here
+        return new
+
+    def submit(self, session):
+        '''
+        Abstract function for submitting to the database
+        '''
+        # Construct a dataframe with all metadata
+        for name in self.data_names:
+            df = self.build_data(self.df, name)
+            print(df.columns)
+            # Grab each row, convert it to dict and join it with site info
+            for i,row in df.iterrows():
+                data = row.to_dict()
+
+                if self.debug:
+                    self.add_one(session, data)
+                else:
+                    try:
+                        self.add_one(session, data)
+
+                    except Exception as e:
+                        self.errors.append(e)
+                        self.log.error((i, e))
+
+
+    def add_one(self, session, data):
+        '''
+        Uploads smallest unit of database entry.
+        e.g.
+            Points: Is a single value with metadata
+            Layers: Is a single layer
+            Raster: Is a single Raster tile
+
+        Args:
+            session: SQLAlchemy database session
+            data: Dictionary of the data to submit to the db
+        '''
+        # Create db interaction, pass data as kwargs to class submit data
+        d = self.TableClass(**data)
+        print(len(data['raster']))
+        print(data['raster'][0:2], data['raster'][-3:-1])
+        session.add(d)
+        session.commit()
+        self.uploaded += 1
+
+class BaseTextUploader(BaseUploader):
+    '''
+    Uploading anything that comes out of a text csv file
+    This includes Point data and Layer Data
+    '''
+
+    def __init__(self, filename, **kwargs):
+        super().__init__(filename, **kwargs)
+
+        # All text files have columns and maybe header info
+        self.hdr = DataHeader(filename, **kwargs)
+
+        # Transfer a couple attributes for brevity
+        for att in ['data_names', 'multi_sample_profiles']:
+            setattr(self, att, getattr(self.hdr, att))
+
+        # Read in data
+        self.df = self._read(filename)
+
 class UploadProfileData():
     '''
     Class for submitting a single profile. Since layers are uploaded layer by
@@ -177,13 +304,6 @@ class UploadProfileData():
         for pt in self.data_names:
             df = self.build_data(pt)
 
-            # Add a progressbar if its long upload
-            if len(df.index) > 1000:
-                long_upload = True
-                bar = progressbar.ProgressBar(max_value=len(df.index))
-
-            else:
-                long_upload = False
 
             # Grab each row, convert it to dict and join it with site info
             for i,row in df.iterrows():
@@ -224,8 +344,7 @@ class PointDataCSV(object):
         # Performance tracking
         self.errors = []
         self.points_uploaded = 0
-        print(self.hdr.data_names)
-        
+
     def _read(self, filename):
         '''
         Read in the csv
@@ -338,8 +457,9 @@ class StationDataCSV(PointDataCSV):
     '''
     Uploads a csv of Station data
     '''
+    pass
 
-class UploadRaster(object):
+class UploadRaster(BaseUploader):
     '''
     Class for uploading a single tifs to the database. Utilizes the raster2pgsql
     command and then parses it for delivery via python.
@@ -347,17 +467,22 @@ class UploadRaster(object):
 
     defaults = {'epsg':26912,
                 'tiled':False,
-                'no_data': None}
+                'no_data': None,
+                'debug':True}
 
-    def __init__(self, filename,  **kwargs):
-        self.log = get_logger(__name__)
-        self.filename = filename
-        self.data = assign_default_kwargs(self, kwargs, self.defaults)
+    # Since Uploading a raster has no header, we had a data_name for uploading
+    data_names = ['raster']
 
-    def submit(self, session):
+    # Assign the table class which is used for uploading
+    TableClass = ImageData
+
+    def _read(self, filename):
         '''
-        Submit the data to the db using ORM
+        Reads the raster using the raster2pgsql function and builds a dataframe
+        to upload each piece
         '''
+        df = pd.DataFrame(columns=['raster'])
+
         # This produces a PSQL command with auto tiling
         cmd = ['raster2pgsql','-s', str(self.epsg)]
 
@@ -371,21 +496,22 @@ class UploadRaster(object):
             cmd.append('-N')
             cmd.append(str(self.no_data))
 
-        cmd.append(self.filename)
+        cmd.append(filename)
         self.log.debug('Executing: {}'.format(' '.join(cmd)))
         s = check_output(cmd, stderr=STDOUT).decode('utf-8')
 
         # Split the SQL command at values (' which is the start of every one
         tiles = s.split("VALUES ('")[1:]
+        tiles = [t.split("'::")[0] for t in tiles]
+
         if len(tiles) > 1:
             # -1 because the first element is not a
             self.log.info('Raster is split into {} tiles for uploading...'.format(len(tiles)))
 
-        # Allow for tiling, the first split is always psql statement we don't need
-        for t in tiles:
-            v = t.split("'::")[0]
-            raster = RasterElement(v)
-            self.data['raster'] = raster
-            r = ImageData(**self.data)
-            session.add(r)
-            session.commit()
+        df['raster'] = tiles
+
+        # Add in meta data
+        for k,v in self.data.items():
+            df[k] = v
+            
+        return df

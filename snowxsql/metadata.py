@@ -523,7 +523,7 @@ class DataHeader(object):
         # Rename any column names to more standard ones
         columns = remap_data_names(columns, self.rename)
 
-        # Detmerine the profile type
+        # Detemerine the profile type
         (self.data_names, self.multi_sample_profiles) = \
                                              self.determine_data_names(columns)
 
@@ -558,15 +558,15 @@ class DataHeader(object):
         str_cols =  ' '.join(raw_columns).replace(' ',"_").lower()
 
         for dname in self.available_data_names:
-
             kw_count = str_cols.count(dname)
 
             # if we have keyword match in our columns then add the type
-            if kw_count > 0:
+            if dname in raw_columns:
                 data_names.append(dname)
 
-                # Avoid triggering on depth and bottom depth in profiles
-                if kw_count > 1 and dname != 'depth':
+            # Avoid triggering on depth and bottom depth in profiles
+            elif kw_count > 1 and dname != 'depth':
+                if 'sample' in dname:
                     self.log.debug('{} is multisampled...'.format(dname))
                     multi_sample_profiles.append(dname)
 

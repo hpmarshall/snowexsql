@@ -85,6 +85,7 @@ def remap_data_names(original, rename_map):
         for k, v in original.items():
 
             if k in remap_keys:
+                print(k, v)
                 new_k = rename_map[k]
 
             # handle multisample names that need changing (e.g. dielectric_constant_a)

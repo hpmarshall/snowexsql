@@ -116,18 +116,18 @@ class TestTiledRaster(DBSetup):
         merged = self.session.query(func.ST_Union(ImageData.raster, type_=Raster)).filter(ImageData.id.in_([1, 2])).all()
         assert len(merged) == 1
 
-    def test_raster_bounds(self):
-        '''
-        Test the tile bounds are as expected
-        '''
-        rasters = self.session.query(func.ST_AsTiff(ImageData.raster)).all()
-        datasets = raster_to_rasterio(self.session, rasters)
-
-        # Original untiled raster bounds from gdalinfo
-        llx = 748446.195
-        lly = 4328702.972
-        urx = 751909.286
-        ury = 4328702.972
-
-        for d in datasets:
-            d.bound
+    # def test_raster_bounds(self):
+    #     '''
+    #     Test the tile bounds are as expected
+    #     '''
+    #     rasters = self.session.query(func.ST_AsTiff(ImageData.raster)).all()
+    #     datasets = raster_to_rasterio(self.session, rasters)
+    #
+    #     # Original untiled raster bounds from gdalinfo
+    #     llx = 748446.195
+    #     lly = 4328702.972
+    #     urx = 751909.286
+    #     ury = 4328702.972
+    #
+    #     for d in datasets:
+    #         d.bound

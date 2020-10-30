@@ -190,35 +190,68 @@ class BaseTextUploader(BaseUploader):
         # replace all nans or string nones with None (none type)
         df = df.apply(lambda x: parse_none(x))
 
+        # Assign all meta data to every entry to the data frame
+        for k, v in self.hdr.info.items():
+            if k not in df.columns:
+                df[k] = v
+
         return df
 
-    def assign_value_units(self, data_name, df):
+    def build_data(self, data_name):
         '''
-        Used inside the upload loop.
+        Build out the original dataframe with the metdata to avoid doing it
+        during the submission loop. Removes all other main profile columns and
+        assigns data_name as the value column
 
-        1.Assign the value to the data_name in the dataframe.
-        2. Assigns any units we might already have
-        3. Assigns the name of the data
-        4. Trims unecessary columns.
+        1. Assign all meta data to every entry to the data frame
+        2. Assign type
+        3A. Assign an multisampled data average to the value key
+        3B. (or) Assign the main data name to the value
+        4. Assign any units we know
+        5. Drop all columns were not expecting
+        6. Clean up comments a bit
+
 
         Args:
-            data_name: Name of the column thats being uploaded and assigned to db value
-            df: Pandas dataframe containing text file to upload
+            data_name: Name of a the main profile
+
         Returns:
-            df: Pandas DataFrame with only the necessary column
+            df: Dataframe ready for submission
         '''
-        
-        # Assign our main value to the value column
-        df['value'] = df[data_name].copy()
+
+        df = self.df.copy()
+
+        # 2. Assign type
         df['type'] = data_name
 
-        # Add units
+        # 3A. Assign an multisampled data average to the value key
+        if data_name in self.multi_sample_profiles:
+            kw = '{}_sample'.format(data_name)
+            sample_cols = [c for c in df.columns if kw in c]
+            df['value'] = df[sample_cols].mean(axis=1).astype(str)
+
+            # Replace the data_name sample columns with just sample
+            for s in sample_cols:
+                n = s.replace(kw, 'sample')
+                df[n] = df[s].copy()
+
+        # 3B. Assign the main data name to the value
+        else:
+            df['value'] = df[data_name].astype(str)
+
+        # 4. Add units
         if data_name in self.units.keys():
             df['units'] = self.units[data_name]
 
-        # Drop all columns were not expecting
+        # 5. Drop all columns were not expecting
         df = self.trim_columns(df)
+
+        # 6. Clean up comments a bit
+        if 'comments' in df.columns:
+            df['comments'] = df['comments'].apply(lambda x: x.strip(' ') if type(x) == str else x)
+
         return df
+
 
 class UploadProfileData(BaseTextUploader):
     '''
@@ -229,7 +262,7 @@ class UploadProfileData(BaseTextUploader):
     TableClass = LayerData
 
     # Class attributes to apply
-    defaults = {'debug':True, 'utm_zone':12, 'epsg':26912}
+    defaults = {'debug':True, 'utm_zone':12, 'epsg':26912, 'depth_is_metadata':True}
 
     def prepare(self, df):
         '''
@@ -247,6 +280,7 @@ class UploadProfileData(BaseTextUploader):
         # If SMP profile convert depth to cm
         depth_fmt = 'snow_height'
         is_smp = False
+
         if 'force' in df.columns:
             df['depth'] = df['depth'].div(10)
             is_smp = True
@@ -296,50 +330,6 @@ class UploadProfileData(BaseTextUploader):
                                                              self.hdr.info[k],
                                                              site_info[k]))
 
-    def build_data(self, data_name):
-        '''
-        Build out the original dataframe with the metdata to avoid doing it
-        during the submission loop. Removes all other main profile columns and
-        assigns data_name as the value column
-
-        Args:
-            data_name: Name of a the main profile
-
-        Returns:
-            df: Dataframe ready for submission
-        '''
-
-        df = self.df.copy()
-
-        # Assign all meta data to every entry to the data frame
-        for k, v in self.hdr.info.items():
-            df[k] = v
-
-        df['type'] = data_name
-
-        # Get the average if its multisample profile
-        if data_name in self.multi_sample_profiles:
-            kw = '{}_sample'.format(data_name)
-            sample_cols = [c for c in df.columns if kw in c]
-            df['value'] = df[sample_cols].mean(axis=1).astype(str)
-
-            # Replace the data_name sample columns with just sample
-            for s in sample_cols:
-                n = s.replace(kw, 'sample')
-                df[n] = df[s].copy()
-
-        # Individual
-        else:
-            df['value'] = df[data_name].astype(str)
-
-        # Drop all columns were not expecting
-        df = self.trim_columns(df)
-
-        # Clean up comments a bit
-        if 'comments' in df.columns:
-            df['comments'] = df['comments'].apply(lambda x: x.strip(' ') if type(x) == str else x)
-
-        return df
 
 class PointDataCSV(BaseTextUploader):
     '''
@@ -356,7 +346,7 @@ class PointDataCSV(BaseTextUploader):
     TableClass = PointData
 
     # Class attributes to apply
-    defaults = {'debug':True, 'utm_zone':12, 'epsg':26912}
+    defaults = {'debug':True, 'utm_zone':12, 'epsg':26912, 'depth_is_metadata':True}
 
     def prepare(self, df):
         '''
@@ -377,41 +367,13 @@ class PointDataCSV(BaseTextUploader):
         # Add projection info
         self.log.info('Converting locations...')
 
-        if 'utm_zone' not in df.columns:
-            df['utm_zone'] = int(self.utm_zone)
-
         df = df.apply(lambda row: reproject_point_in_dict(row), axis=1)
-
+        print(df.columns)
         self.log.info('Adding geometry object to the metadata...')
         df['geom'] = df.apply(lambda row: add_geom(row, self.epsg), axis=1)
 
         return df
 
-    def build_data(self, data_name):
-        '''
-        Pad the dataframe with metdata or make info more verbose
-        '''
-
-        # Assign our main value to the value column
-        df = self.df.copy()
-        df['value'] = self.df[data_name].copy()
-        df['type'] = data_name
-
-        # Add units
-        if data_name in self.units.keys():
-            df['units'] = self.units[data_name]
-
-        # Drop all columns were not expecting
-        df = self.trim_columns(df)
-
-        return df
-
-
-class StationDataCSV(PointDataCSV):
-    '''
-    Uploads a csv of Station data
-    '''
-    pass
 
 class UploadRaster(BaseUploader):
     '''

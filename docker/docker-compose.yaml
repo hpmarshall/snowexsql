@@ -1,0 +1,17 @@
+version: "3"
+services:
+  postgres:
+    image: postgis/postgis:12-3.1
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=snowexPass
+      - POSTGRES_USER=snowex
+    volumes:
+      - ./init-dbs.sh:/docker-entrypoint-initdb.d/init-user-db.sh:consistent
+      - ./my-postgres.conf:/etc/postgresql/postgresql.conf:consistent
+    networks:
+      - snowex-network
+
+networks:
+  snowex-network:

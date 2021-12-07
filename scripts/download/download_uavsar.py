@@ -97,22 +97,22 @@ def main():
         # Grand Mesa processed with 5m DTM
         ('http://downloaduav.jpl.nasa.gov/Release2u/grmesa_27416_20003-028_20005-007_0011d_s01_L090_03/',
          'grmesa_27416_20003-028_20005-007_0011d_s01_L090HH_03'),
-        #
-        # # Boise Basin, lowman_23205, 1 / 31 - 2 / 13
-        # ('http://downloaduav.jpl.nasa.gov/Release2v/lowman_23205_20002-007_20007-003_0013d_s01_L090_01/',
-        #  'lowman_23205_20002-007_20007-003_0013d_s01_L090HH_01'),
-        #
-        # # Boise Basin, lowman_23205, 2 / 13 - 2 / 21
-        # ('http://uavsar.asfdaac.alaska.edu/UA_lowman_23205_20007-003_20011-003_0008d_s01_L090_01/',
-        #  'lowman_23205_20007-003_20011-003_0008d_s01_L090HH_01'),
-        #
-        # # Boise Basin, lowman_23205, 2 / 21 - 3 / 11
-        # ('http://downloaduav.jpl.nasa.gov/Release2v/lowman_23205_20011-003_20016-004_0019d_s01_L090_01/',
-        #  'lowman_23205_20011-003_20016-004_0019d_s01_L090HH_01'),
-        #
-        # # Reynolds Creek, silver_34715, 2 / 21 - 3 / 11
-        # ('http://downloaduav.jpl.nasa.gov/Release2x/silver_34715_20011-001_20016-002_0019d_s01_L090_01/', \
-        #  'silver_34715_20011-001_20016-002_0019d_s01_L090HH_01'),
+
+        # Boise Basin, lowman_23205, 1 / 31 - 2 / 13
+        ('http://downloaduav.jpl.nasa.gov/Release2v/lowman_23205_20002-007_20007-003_0013d_s01_L090_01/',
+         'lowman_23205_20002-007_20007-003_0013d_s01_L090HH_01'),
+
+        # Boise Basin, lowman_23205, 2 / 13 - 2 / 21
+        ('http://uavsar.asfdaac.alaska.edu/UA_lowman_23205_20007-003_20011-003_0008d_s01_L090_01/',
+         'lowman_23205_20007-003_20011-003_0008d_s01_L090HH_01'),
+
+        # Boise Basin, lowman_23205, 2 / 21 - 3 / 11
+        ('http://downloaduav.jpl.nasa.gov/Release2v/lowman_23205_20011-003_20016-004_0019d_s01_L090_01/',
+         'lowman_23205_20011-003_20016-004_0019d_s01_L090HH_01'),
+
+        # Reynolds Creek, silver_34715, 2 / 21 - 3 / 11
+        ('http://downloaduav.jpl.nasa.gov/Release2x/silver_34715_20011-001_20016-002_0019d_s01_L090_01/', \
+         'silver_34715_20011-001_20016-002_0019d_s01_L090HH_01'),
     ]
 
 

@@ -11,13 +11,15 @@ Otherwise see main() to redefine the location where the files are stored
 import glob
 import shutil
 import time
-from os import listdir, mkdir
+from os import mkdir
 from os.path import abspath, basename, dirname, expanduser, isdir, join
 
 from snowexsql.conversions import INSAR_to_rasterio
 from snowexsql.metadata import read_InSar_annotation
 from snowexsql.projection import reproject_raster_by_epsg
-from snowexsql.utilities import get_logger, read_n_lines
+from snowexsql.utilities import get_logger
+
+import sys
 
 log = get_logger('grd2tif')
 
@@ -117,8 +119,27 @@ def convert(filenames, output, epsg, clean_first=False):
     log.info('Completed! {:0.0f}s elapsed'.format(time.time() - start))
 
 
-def main():
+def batch_convert(output, gm_filenames=None, boi_filenames=None, rcew_filenames=None, clean_first=False):
+    """
+    Run all the of conversions while allowing partial conversions if necessary
+    """
+    is_first = True
+    if gm_filenames is not None:
+        log.info('Converting Grand Mesa...')
+        convert(gm_filenames, output, 26912, clean_first=(is_first and clean_first))
+        is_first = False
 
+    if boi_filenames is not None:
+        log.info('Converting Boise/Lowman...')
+        convert(boi_filenames, output, 26911, clean_first=(is_first and clean_first))
+        is_first = False
+
+    if rcew_filenames is not None:
+        log.info('Converting Reynolds Creek/Silver...')
+        convert(rcew_filenames, output, 26911, clean_first=(is_first and clean_first))
+
+
+def main():
     # Reprojection EPSG
     gm_epsg = 26912
     boi_epsg = 26911
@@ -135,13 +156,12 @@ def main():
 
     # Gather all .ann files
     gm_filenames = glob.glob(join(directory, 'grmesa_*.ann'))
-
-    # TODO: Unsurpress IDAHO files after hackweek
     boi_filenames = glob.glob(join(directory, 'lowman_*.ann'))
     rcew_filenames = glob.glob(join(directory, 'silver_*.ann'))
 
-    nfiles = len(gm_filenames) + len(boi_filenames) + len(rcew_filenames)
+    nfiles = len(glob.glob(join(directory, '*.tif')))
 
+    # If the output folder exists attempt clean it
     if isdir(output):
         ans = input('\nWARNING! You are about overwrite {} previously '
                     'converted UAVSAR Geotiffs files located at {}!\nPress Y to'
@@ -149,24 +169,14 @@ def main():
                     ''.format(nfiles, output))
 
         if ans.lower() == 'y':
-            log.info('Converting Grand Mesa...')
-            convert(gm_filenames, output, gm_epsg, clean_first=True)
-            log.info('Converting Boise/Lowman...')
-            convert(boi_filenames, output, boi_epsg)
-            log.info('Converting Reynolds Creek/Silver...')
-            convert(rcew_filenames, output, boi_epsg)
+            batch_convert(output, gm_filenames, boi_filenames, rcew_filenames, clean_first=True)
 
         else:
             log.warning(
                 'Skipping conversion and overwriting of UAVSAR files...')
     else:
         mkdir(output)
-        log.info('Converting Grand Mesa...')
-        convert(gm_filenames, output, gm_epsg)
-        log.info('Converting Boise/Lowman...')
-        convert(boi_filenames, output, boi_epsg)
-        log.info('Converting Reynolds Creek/Silver...')
-        convert(rcew_filenames, output, boi_epsg)
+        batch_convert(output, gm_filenames, boi_filenames, rcew_filenames, clean_first=True)
 
 if __name__ == '__main__':
     main()

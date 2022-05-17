@@ -94,6 +94,7 @@ def convert(filenames, output, epsg, clean_first=False):
 
                 for tif in glob.glob(tiff_pattern):
                     utm_file = tif.replace(temp, output)
+                    log.info(f'Reprojecting and writing to {utm_file}...')
                     reproject_raster_by_epsg(tif, utm_file, epsg)
                     completed += 1
 
@@ -159,10 +160,9 @@ def main():
     boi_filenames = glob.glob(join(directory, 'lowman_*.ann'))
     rcew_filenames = glob.glob(join(directory, 'silver_*.ann'))
 
-    nfiles = len(glob.glob(join(directory, '*.tif')))
-
     # If the output folder exists attempt clean it
     if isdir(output):
+        nfiles = len(glob.glob(join(output,'*.tif')))
         ans = input('\nWARNING! You are about overwrite {} previously '
                     'converted UAVSAR Geotiffs files located at {}!\nPress Y to'
                     ' continue and any other key to abort: '
@@ -177,6 +177,7 @@ def main():
     else:
         mkdir(output)
         batch_convert(output, gm_filenames, boi_filenames, rcew_filenames, clean_first=True)
+
 
 if __name__ == '__main__':
     main()

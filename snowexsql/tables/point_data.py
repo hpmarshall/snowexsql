@@ -38,8 +38,6 @@ class PointData(SingleLocationData, Measurement, Base):
     type = Column(String(50))
     units = Column(String(50))
 
-    # This should be the foreign key
-    # instrument = Column(String(50))
     # Link the instrument id with a foreign key
     instrument_id = Column(Integer, ForeignKey('public.instruments.id'))
     # Link the Instrument class
@@ -47,4 +45,6 @@ class PointData(SingleLocationData, Measurement, Base):
 
     # id is a mapped column for many-to-many with observers
     id: Mapped[int] = mapped_column(primary_key=True)
-    observers: Mapped[List[Observer]] = relationship(secondary=PointObservers)
+    observers: Mapped[List[Observer]] = relationship(
+        secondary=PointObservers.__table__
+    )

@@ -12,4 +12,3 @@ class Observer(Base):
     # Name of the observer
     first_name = Column(String(255))
     last_name = Column(String(255))
-    email = Column(String(255))

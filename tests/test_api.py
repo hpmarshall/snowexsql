@@ -2,12 +2,13 @@ from os.path import join, dirname
 import geopandas as gpd
 import numpy as np
 import pytest
-from datetime import date
-
+from datetime import date, time
+from geoalchemy2.elements import WKTElement
 from snowexsql.api import (
-    PointMeasurements, LargeQueryCheckException, LayerMeasurements
+    PointMeasurements, LargeQueryCheckException, LayerMeasurements, db_session
 )
 from snowexsql.db import get_db, initialize
+from snowexsql.tables import Instrument, Observer, PointData
 
 
 @pytest.fixture(scope="session")
@@ -45,8 +46,58 @@ class DBConnection:
         metadata.drop_all(bind=engine)
         session.close()
 
+    @staticmethod
+    def _add_entry(url, instrument_name, observer_names, **kwargs):
+        url_long = f"{url.username}:{url.password}@{url.host}/{url.database}"
+        with db_session(url_long) as (session, engine):
+            # Check if the instrument already exists
+            instrument = session.query(Instrument).filter_by(
+                name=instrument_name).first()
+
+            if not instrument:
+                # If the instrument does not exist, create it
+                instrument = Instrument(name=instrument_name)
+                session.add(instrument)
+                session.commit()  # Commit to ensure instrument is saved and has an ID
+
+            observer_list = []
+            for obs_name in observer_names:
+                observer = session.query(Observer).filter_by(
+                    last_name=obs_name).first()
+                if not observer:
+                    # If the instrument does not exist, create it
+                    observer = Observer(last_name=obs_name)
+                    session.add(observer)
+                    session.commit()  # Commit to ensure instrument is saved and has an ID
+                observer_list.append(observer)
+
+            # Now that the instrument exists, create the entry, notice we only need the instrument object
+            new_entry = PointData(
+                instrument=instrument, observers=observer_list, **kwargs
+            )
+            session.add(new_entry)
+            session.commit()
+
     @pytest.fixture(scope="class")
-    def clz(self, db, db_url):
+    def populated_points(self, db):
+
+        # Fake data to implement
+        row = {
+            'date': date(2020, 1, 28),
+            'time': time(18, 48), 'longitude': -108.13515,
+            'latitude': 39.03045,
+            'easting': 747987.6190615438, 'northing': 4324061.7062127385,
+            'elevation': 3148.2,
+            'equipment': 'CRREL_B', 'version_number': 1, 'utm_zone': 12,
+            'geom': WKTElement("POINT(747987.6190615438 4324061.7062127385)",
+                               srid=26912),
+            'site_name': 'Grand Mesa', 'date_accessed': date(2024, 7, 10),
+            'value': 94, 'type': 'depth', 'units': 'cm'
+        }
+        self._add_entry(db.url, 'magnaprobe', ["TEST"], **row)
+
+    @pytest.fixture(scope="class")
+    def clz(self, db, db_url, populated_points):
         """
         Extend the class and overwrite the database name
         """
@@ -57,10 +108,10 @@ class DBConnection:
         yield Extended
 
 
-def unsorted_list_tuple_compare(l1, l2):
+def unsorted_list_compare(l1, l2):
     # turn lists into sets, but get rid of any Nones
-    l1 = set([l[0] for l in l1 if l[0] is not None])
-    l2 = set([l[0] for l in l2 if l[0] is not None])
+    l1 = set(l1)
+    l2 = set(l2)
     # compare the sets
     return l1 == l2
 
@@ -73,31 +124,31 @@ class TestPointMeasurements(DBConnection):
 
     def test_all_types(self, clz):
         result = clz().all_types
-        assert unsorted_list_tuple_compare(
+        assert unsorted_list_compare(
             result,
-            []
+            ['depth']
         )
 
     def test_all_site_names(self, clz):
         result = clz().all_site_names
-        assert unsorted_list_tuple_compare(
-            result, []
+        assert unsorted_list_compare(
+            result, ['Grand Mesa']
         )
 
     def test_all_dates(self, clz):
         result = clz().all_dates
-        assert len(result) == 0
+        assert len(result) == 1
 
     def test_all_observers(self, clz):
         result = clz().all_observers
-        assert unsorted_list_tuple_compare(
-            result, []
+        assert unsorted_list_compare(
+            result, ['None TEST']
         )
 
     def test_all_instruments(self, clz):
         result = clz().all_instruments
-        assert unsorted_list_tuple_compare(
-            result, []
+        assert unsorted_list_compare(
+            result, ["magnaprobe"]
         )
 
     @pytest.mark.parametrize(
@@ -179,11 +230,11 @@ class TestLayerMeasurements(DBConnection):
 
     def test_all_observers(self, clz):
         result = clz().all_observers
-        assert unsorted_list_tuple_compare(result, [])
+        assert unsorted_list_compare(result, [])
 
     def test_all_instruments(self, clz):
         result = clz().all_instruments
-        assert unsorted_list_tuple_compare(result, [])
+        assert unsorted_list_compare(result, [])
 
     @pytest.mark.parametrize(
         "kwargs, expected_length, mean_value", [

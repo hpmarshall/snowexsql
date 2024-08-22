@@ -12,7 +12,7 @@ class TestDB(DBSetup):
     base_atts = ['site_name', 'date', 'site_id']
     single_loc_atts = ['latitude', 'longitude', 'easting', 'elevation', 'utm_zone', 'geom', 'time']
 
-    meas_atts = ['instrument', 'type', 'units', 'observers']
+    meas_atts = ['type', 'units']
 
     site_atts = base_atts + single_loc_atts + \
                 ['slope_angle', 'aspect', 'air_temp', 'total_depth',
@@ -22,7 +22,7 @@ class TestDB(DBSetup):
                  'tree_canopy', 'site_notes']
 
     point_atts = single_loc_atts + meas_atts + \
-                 ['version_number', 'equipment', 'value']
+                 ['version_number', 'equipment', 'value', 'instrument_id']
 
     layer_atts = single_loc_atts + meas_atts + \
                  ['depth', 'value', 'bottom_depth', 'comments', 'sample_a', 'sample_b',

@@ -45,7 +45,5 @@ class Measurement(object):
     """
     Base Class providing attributes required for a measurement of any kind
     """
-    instrument = Column(String(50))
     type = Column(String(50))
     units = Column(String(50))
-    observers = Column(String(100))

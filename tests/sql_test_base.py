@@ -42,22 +42,8 @@ class DBSetup:
     @classmethod
     def teardown_class(self):
         """
-        Remove the database
+        Close the session
         """
-        # self.metadata.tables['point_observers'].drop(
-        #     self.engine, checkfirst=True
-        # )
-        # self.metadata.tables['observers'].drop(
-        #     self.engine, checkfirst=True
-        # )
-        # self.metadata.tables['points'].drop(
-        #     self.engine, checkfirst=True
-        # )
-        # self.metadata.tables['instruments'].drop(
-        #     self.engine, checkfirst=True
-        # )
-        # self.metadata.drop_all(bind=self.engine, checkfirst=True)
-        # self.metadata.drop_all(bind=self.engine)
         self.session.close()  # optional, depends on use case
 
     def teardown(self):
